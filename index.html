@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="QCM">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-180.png">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <title>Mon App QCM</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --success: #16a34a;
+            --error: #dc2626;
+            --border: #e2e8f0;
+        }
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); margin: 0; padding: 16px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { background: var(--card); width: 100%; max-width: 500px; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-weight: bold; color: #64748b; font-size: 0.9rem; }
+        .badge-theme { background: #f1f5f9; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; color: #475569; }
+        .timer { background: #eff6ff; color: var(--primary); padding: 6px 12px; border-radius: 20px; font-variant-numeric: tabular-nums; }
+        .question-text { font-size: 1.2rem; font-weight: 600; margin-bottom: 20px; line-height: 1.4; }
+        .options { display: flex; flex-direction: column; gap: 12px; }
+        button.option-btn { background: var(--card); border: 2px solid var(--border); border-radius: 12px; padding: 14px 16px; text-align: left; font-size: 1rem; color: var(--text); cursor: pointer; transition: all 0.2s; }
+        button.option-btn:active { transform: scale(0.98); }
+        button.option-btn.correct { background: #dcfce7; border-color: var(--success); color: #14532d; font-weight: 600; }
+        button.option-btn.wrong { background: #fee2e2; border-color: var(--error); color: #7f1d1d; }
+        button.option-btn:disabled { cursor: default; }
+        .explanation { margin-top: 20px; padding: 14px; background: #f1f5f9; border-left: 4px solid var(--primary); border-radius: 8px; font-size: 0.95rem; line-height: 1.4; display: none; }
+        .btn-main { width: 100%; background: var(--primary); color: white; border: none; border-radius: 12px; padding: 16px; font-size: 1.05rem; font-weight: 600; margin-top: 16px; cursor: pointer; }
+        .btn-secondary { background: #e2e8f0; color: var(--text); margin-top: 10px; }
+        .select-theme { width: 100%; padding: 14px; border-radius: 12px; border: 2px solid var(--border); font-size: 1rem; color: var(--text); background-color: var(--card); margin-bottom: 8px; cursor: pointer; outline: none; }
+        .select-theme:focus { border-color: var(--primary); }
+        .hidden { display: none; }
+        .score-box { text-align: center; padding: 20px 0; }
+        .score-big { font-size: 3rem; font-weight: 800; color: var(--primary); margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+
+<div class="container">
+    <!-- ÉCRAN DE DÉMARRAGE -->
+    <div id="start-screen" style="text-align: center;">
+        <h1 style="margin-top: 0;">Prêt à réviser ?</h1>
+        <p style="color: #64748b; margin-bottom: 20px;">Choisissez un thème précis ou révisez l'ensemble de vos cours.</p>
+        
+        <select id="theme-select" class="select-theme">
+            <option value="ALL">Tous les thèmes mélangés</option>
+        </select>
+
+        <button class="btn-main" id="start-btn" type="button">Commencer la session</button>
+    </div>
+
+    <!-- ÉCRAN DU QUIZ -->
+    <div id="quiz-screen" class="hidden">
+        <div class="header">
+            <div>
+                <span id="progress">1/5</span>
+                <span class="badge-theme" id="current-theme-badge">Thème</span>
+            </div>
+            <span class="timer" id="timer">00:00</span>
+        </div>
+        <div class="question-text" id="question">Énoncé de la question</div>
+        <div class="options" id="options"></div>
+        <div class="explanation" id="explanation"></div>
+        <button class="btn-main hidden" id="next-btn" type="button">Question suivante</button>
+    </div>
+
+    <!-- ÉCRAN DES RÉSULTATS -->
+    <div id="result-screen" class="hidden score-box">
+        <h2 style="margin-top: 0;">Session terminée !</h2>
+        <div class="score-big" id="final-score">0 / 0</div>
+        <p id="final-time" style="color: #64748b; margin-bottom: 24px;">Temps total : 00:00</p>
+        <button class="btn-main hidden" id="retry-wrong-btn" type="button">Réviser mes erreurs</button>
+        <button class="btn-main btn-secondary" id="menu-btn" type="button">Choisir un autre thème</button>
+    </div>
+</div>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // ===== AJOUTEZ VOS QUESTIONS ICI =====
+    // Optionnel : ajoutez wrong: ["faux 1","faux 2","faux 3"] pour imposer vos propres mauvaises réponses.
+    const allQuestions = [
+        {
+            theme: "Couche Réseau",
+            question: "Quelle est la position de la couche réseau dans le modèle OSI ?",
+            correctAnswer: "La troisième (3e) couche",
+            explanation: "Dans le modèle OSI, la couche réseau se situe juste après la couche liaison de données, en 3e position."
+        },
+        {
+            theme: "Couche Réseau",
+            question: "Quel est le rôle principal du protocole IP au niveau de la couche réseau ?",
+            correctAnswer: "Assurer l'adressage et le routage des paquets de données",
+            explanation: "L'IP (Internet Protocol) permet d'identifier les machines et de trouver le chemin pour acheminer les paquets."
+        },
+        {
+            theme: "Couche Réseau",
+            question: "Comment s'effectuent les connexions entre réseaux au niveau de la couche réseau ?",
+            correctAnswer: "Dans les deux sens entre différents réseaux",
+            explanation: "La communication Internet nécessite des échanges bidirectionnels entre les réseaux interconnectés."
+        },
+        {
+            theme: "Couche Réseau",
+            question: "Qu'est-ce qui rend Internet possible selon le modèle OSI ?",
+            correctAnswer: "Les connexions de réseau à réseau",
+            explanation: "Internet est un réseau de réseaux : ce sont ces interconnexions qui permettent la communication globale."
+        },
+        {
+            theme: "Couche Réseau",
+            question: "Comment définit-on un réseau informatique ?",
+            correctAnswer: "Un ensemble d'équipements interconnectés pour échanger des données",
+            explanation: "Il relie des ordinateurs ou périphériques (comme une imprimante) via une liaison pour partager des informations."
+        },
+        {
+            theme: "Modèle OSI (Général)",
+            question: "Combien de couches comporte le modèle OSI au total ?",
+            correctAnswer: "7 couches",
+            explanation: "Le modèle OSI est divisé en 7 couches allant de la couche physique (1) à la couche application (7)."
+        },
+        {
+            theme: "Modèle OSI (Général)",
+            question: "Quelle couche du modèle OSI gère la transmission brute des bits sur le câble ?",
+            correctAnswer: "La couche physique (1re couche)",
+            explanation: "La couche physique s'occupe des signaux électriques, optiques ou radio."
+        },
+        {
+            theme: "Modèle OSI (Général)",
+            question: "À quelle couche appartient le protocole HTTP ?",
+            correctAnswer: "La couche application (7e couche)",
+            explanation: "HTTP est un protocole directement utilisé par les navigateurs web au niveau de la couche application."
+        },
+        {
+            theme: "Modèle OSI (Général)",
+            question: "Quelle couche assure le transport fiable des données de bout en bout (ex: TCP) ?",
+            correctAnswer: "La couche transport (4e couche)",
+            explanation: "La couche transport segmente les données et garantit leur bonne arrivée avec TCP."
+        }
+    ];
+    // =====================================
+
+    let currentQuestions = [], wrongQuestions = [], currentIndex = 0, score = 0;
+    let timerInterval = null, secondsElapsed = 0, answered = false;
+
+    const $ = id => document.getElementById(id);
+    const screens = { start: $('start-screen'), quiz: $('quiz-screen'), result: $('result-screen') };
+    const themeSelect = $('theme-select'), nextBtn = $('next-btn'), retryBtn = $('retry-wrong-btn');
+
+    function show(name) {
+        Object.keys(screens).forEach(k => screens[k].classList.toggle('hidden', k !== name));
+    }
+    function shuffle(a) {
+        a = [...a];
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+    function fmt(s) {
+        return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+    }
+
+    function populateThemes() {
+        themeSelect.innerHTML = '<option value="ALL">Tous les thèmes mélangés (' + allQuestions.length + ' questions)</option>';
+        [...new Set(allQuestions.map(q => q.theme))].forEach(t => {
+            const n = allQuestions.filter(q => q.theme === t).length;
+            const o = document.createElement('option');
+            o.value = t;
+            o.textContent = t + ' (' + n + ' question' + (n > 1 ? 's' : '') + ')';
+            themeSelect.appendChild(o);
+        });
+    }
+
+    // Construit 4 choix : la bonne réponse + 3 distracteurs
+    function buildChoices(q) {
+        let wrong = q.wrong ? [...q.wrong] : [];
+        if (wrong.length < 3) {
+            const same = allQuestions.filter(x => x !== q && x.theme === q.theme).map(x => x.correctAnswer);
+            const other = allQuestions.filter(x => x !== q && x.theme !== q.theme).map(x => x.correctAnswer);
+            const pool = shuffle(same).concat(shuffle(other)).filter(a => a !== q.correctAnswer && !wrong.includes(a));
+            wrong = wrong.concat(pool).slice(0, 3);
+        }
+        return shuffle([q.correctAnswer].concat(wrong.slice(0, 3)));
+    }
+
+    function startQuiz(list) {
+        currentQuestions = shuffle(list);
+        wrongQuestions = [];
+        currentIndex = 0; score = 0; secondsElapsed = 0;
+        clearInterval(timerInterval);
+        $('timer').textContent = '00:00';
+        timerInterval = setInterval(() => { secondsElapsed++; $('timer').textContent = fmt(secondsElapsed); }, 1000);
+        show('quiz');
+        showQuestion();
+    }
+
+    function showQuestion() {
+        answered = false;
+        const q = currentQuestions[currentIndex];
+        $('progress').textContent = (currentIndex + 1) + '/' + currentQuestions.length;
+        $('current-theme-badge').textContent = q.theme;
+        $('question').textContent = q.question;
+        $('explanation').style.display = 'none';
+        nextBtn.classList.add('hidden');
+        const box = $('options');
+        box.innerHTML = '';
+        buildChoices(q).forEach(c => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'option-btn';
+            b.textContent = c;
+            b.addEventListener('click', () => answer(b, c, q));
+            box.appendChild(b);
+        });
+    }
+
+    function answer(btn, choice, q) {
+        if (answered) return;
+        answered = true;
+        const ok = choice === q.correctAnswer;
+        if (ok) score++; else wrongQuestions.push(q);
+        document.querySelectorAll('.option-btn').forEach(b => {
+            b.disabled = true;
+            if (b.textContent === q.correctAnswer) b.classList.add('correct');
+        });
+        if (!ok) btn.classList.add('wrong');
+        const e = $('explanation');
+        e.textContent = q.explanation || '';
+        e.style.display = q.explanation ? 'block' : 'none';
+        nextBtn.textContent = currentIndex === currentQuestions.length - 1 ? 'Voir le résultat' : 'Question suivante';
+        nextBtn.classList.remove('hidden');
+    }
+
+    function endQuiz() {
+        clearInterval(timerInterval);
+        $('final-score').textContent = score + ' / ' + currentQuestions.length;
+        $('final-time').textContent = 'Temps total : ' + fmt(secondsElapsed);
+        retryBtn.classList.toggle('hidden', wrongQuestions.length === 0);
+        retryBtn.textContent = 'Réviser mes erreurs (' + wrongQuestions.length + ')';
+        show('result');
+    }
+
+    $('start-btn').addEventListener('click', () => {
+        const t = themeSelect.value;
+        startQuiz(t === 'ALL' ? allQuestions : allQuestions.filter(q => q.theme === t));
+    });
+    nextBtn.addEventListener('click', () => {
+        currentIndex++;
+        if (currentIndex >= currentQuestions.length) endQuiz(); else showQuestion();
+    });
+    retryBtn.addEventListener('click', () => startQuiz(wrongQuestions));
+    $('menu-btn').addEventListener('click', () => show('start'));
+
+    populateThemes();
+    show('start');
+});
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
