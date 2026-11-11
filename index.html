@@ -43,6 +43,23 @@
         .hidden { display: none; }
         .score-box { text-align: center; padding: 20px 0; }
         .score-big { font-size: 3rem; font-weight: 800; color: var(--primary); margin: 10px 0; }
+    
+        .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px 0; }
+        .stat-card { background: #f1f5f9; border-radius: 12px; padding: 12px 6px; text-align: center; }
+        .stat-card b { display: block; font-size: 1.4rem; color: var(--primary); }
+        .stat-card span { font-size: 0.75rem; color: #64748b; }
+        .stats h3 { margin: 20px 0 8px; font-size: 1rem; }
+        .row { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        .row small { color: #64748b; display: block; }
+        .bar { height: 6px; background: var(--border); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+        .bar i { display: block; height: 100%; background: var(--primary); }
+        .btn-danger { background: #fee2e2; color: #7f1d1d; }
+    
+        .input { width: 100%; padding: 12px 14px; margin-bottom: 8px; border: 2px solid var(--border); border-radius: 12px; font-size: 16px; color: var(--text); background: var(--card); outline: none; resize: vertical; }
+        .input:focus { border-color: var(--primary); }
+        .msg { min-height: 1.2em; font-size: 0.9rem; margin: 4px 0 0; color: var(--success); }
+        .msg.err { color: var(--error); }
+        .del-btn { background: #fee2e2; color: #7f1d1d; border: none; border-radius: 8px; padding: 6px 10px; font-size: 0.85rem; cursor: pointer; flex-shrink: 0; align-self: center; }
     </style>
 </head>
 <body>
@@ -59,6 +76,8 @@
         </select>
 
         <button class="btn-main" id="start-btn" type="button">Commencer la session</button>
+        <button class="btn-main btn-secondary" id="manage-btn" type="button">Ajouter mes questions</button>
+        <button class="btn-main btn-secondary" id="stats-btn" type="button">Mes statistiques</button>
     </div>
 
     <!-- ÉCRAN DU QUIZ -->
@@ -76,6 +95,38 @@
         <button class="btn-main hidden" id="next-btn" type="button">Question suivante</button>
     </div>
 
+    <!-- ÉCRAN D'AJOUT DE QUESTIONS -->
+    <div id="manage-screen" class="hidden stats">
+        <h2 style="margin-top: 0;">Ajouter une question</h2>
+        <input class="input" id="f-theme" list="theme-list" placeholder="Thème (ex : Couche Réseau)" maxlength="60">
+        <datalist id="theme-list"></datalist>
+        <textarea class="input" id="f-question" rows="2" placeholder="Question"></textarea>
+        <input class="input" id="f-correct" placeholder="Bonne réponse">
+        <input class="input" id="f-w1" placeholder="Mauvaise réponse 1 (facultatif)">
+        <input class="input" id="f-w2" placeholder="Mauvaise réponse 2 (facultatif)">
+        <input class="input" id="f-w3" placeholder="Mauvaise réponse 3 (facultatif)">
+        <textarea class="input" id="f-expl" rows="2" placeholder="Explication (facultatif)"></textarea>
+        <p style="font-size:0.8rem;color:#64748b;margin:0">Sans mauvaises réponses, l'app en pioche dans vos autres questions.</p>
+        <p class="msg" id="form-msg"></p>
+        <button class="btn-main" id="add-btn" type="button">Ajouter la question</button>
+        <h3 id="custom-title">Mes questions</h3>
+        <div id="custom-list"></div>
+        <h3>Sauvegarde</h3>
+        <textarea class="input" id="io-area" rows="3" placeholder="Exportez pour copier vos questions, ou collez ici une sauvegarde à importer."></textarea>
+        <p class="msg" id="io-msg"></p>
+        <button class="btn-main btn-secondary" id="export-btn" type="button">Exporter mes questions</button>
+        <button class="btn-main btn-secondary" id="import-btn" type="button">Importer</button>
+        <button class="btn-main" id="manage-back-btn" type="button">Retour</button>
+    </div>
+
+    <!-- ÉCRAN DES STATISTIQUES -->
+    <div id="stats-screen" class="hidden stats">
+        <h2 style="margin-top: 0;">Mes statistiques</h2>
+        <div id="stats-content"></div>
+        <button class="btn-main" id="stats-back-btn" type="button">Retour</button>
+        <button class="btn-main btn-danger" id="stats-reset-btn" type="button">Effacer mes statistiques</button>
+    </div>
+
     <!-- ÉCRAN DES RÉSULTATS -->
     <div id="result-screen" class="hidden score-box">
         <h2 style="margin-top: 0;">Session terminée !</h2>
@@ -91,7 +142,7 @@
 document.addEventListener("DOMContentLoaded", function () {
     // ===== AJOUTEZ VOS QUESTIONS ICI =====
     // Optionnel : ajoutez wrong: ["faux 1","faux 2","faux 3"] pour imposer vos propres mauvaises réponses.
-    const allQuestions = [
+    const baseQuestions = [
         {
             theme: "Couche Réseau",
             question: "Quelle est la position de la couche réseau dans le modèle OSI ?",
@@ -149,11 +200,26 @@ document.addEventListener("DOMContentLoaded", function () {
     ];
     // =====================================
 
+    // ===== QUESTIONS AJOUTÉES DEPUIS L'APP (sauvegardées sur l'appareil) =====
+    const CKEY = 'qcm-custom-v1';
+    function loadCustom() {
+        try {
+            const d = JSON.parse(localStorage.getItem(CKEY));
+            if (Array.isArray(d)) return d;
+        } catch (e) {}
+        return [];
+    }
+    function saveCustom(list) {
+        try { localStorage.setItem(CKEY, JSON.stringify(list)); return true; } catch (e) { return false; }
+    }
+    let allQuestions = baseQuestions.concat(loadCustom());
+    function refreshQuestions() { allQuestions = baseQuestions.concat(loadCustom()); }
+
     let currentQuestions = [], wrongQuestions = [], currentIndex = 0, score = 0;
-    let timerInterval = null, secondsElapsed = 0, answered = false;
+    let timerInterval = null, secondsElapsed = 0, answered = false, isRetry = false;
 
     const $ = id => document.getElementById(id);
-    const screens = { start: $('start-screen'), quiz: $('quiz-screen'), result: $('result-screen') };
+    const screens = { start: $('start-screen'), quiz: $('quiz-screen'), result: $('result-screen'), stats: $('stats-screen'), manage: $('manage-screen') };
     const themeSelect = $('theme-select'), nextBtn = $('next-btn'), retryBtn = $('retry-wrong-btn');
 
     function show(name) {
@@ -169,6 +235,132 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     function fmt(s) {
         return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+    }
+
+    // ===== STATISTIQUES (sauvegardées sur l'appareil) =====
+    const KEY = 'qcm-stats-v1';
+    function loadStats() {
+        try {
+            const d = JSON.parse(localStorage.getItem(KEY));
+            if (d && Array.isArray(d.sessions) && d.q) return d;
+        } catch (e) {}
+        return { sessions: [], q: {} };
+    }
+    function saveStats(d) {
+        try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
+    }
+    function esc(t) {
+        return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function recordAnswer(q, ok) {
+        const d = loadStats();
+        const r = d.q[q.question] || [0, 0];
+        r[ok ? 0 : 1]++;
+        d.q[q.question] = r;
+        saveStats(d);
+    }
+    function recordSession() {
+        const d = loadStats();
+        const theme = isRetry ? 'Révision des erreurs' : (themeSelect.value === 'ALL' ? 'Tous les thèmes' : themeSelect.value);
+        d.sessions.push({ d: Date.now(), theme: theme, s: score, n: currentQuestions.length, t: secondsElapsed });
+        d.sessions = d.sessions.slice(-100);
+        saveStats(d);
+    }
+    function pct(a, b) { return b ? Math.round(100 * a / b) : 0; }
+
+    function renderStats() {
+        const d = loadStats(), box = $('stats-content');
+        if (!d.sessions.length) {
+            box.innerHTML = '<p style="color:#64748b">Aucune session pour l\'instant. Terminez un quiz pour voir vos progrès ici.</p>';
+            $('stats-reset-btn').classList.add('hidden');
+            return;
+        }
+        $('stats-reset-btn').classList.remove('hidden');
+        const S = d.sessions.reduce((a, x) => ({ s: a.s + x.s, n: a.n + x.n, t: a.t + x.t }), { s: 0, n: 0, t: 0 });
+        let h = '<div class="stat-grid">'
+            + '<div class="stat-card"><b>' + d.sessions.length + '</b><span>sessions</span></div>'
+            + '<div class="stat-card"><b>' + pct(S.s, S.n) + ' %</b><span>de réussite</span></div>'
+            + '<div class="stat-card"><b>' + Math.round(S.t / 60) + ' min</b><span>révisées</span></div></div>';
+
+        const th = {};
+        d.sessions.forEach(x => { const o = th[x.theme] || (th[x.theme] = { s: 0, n: 0 }); o.s += x.s; o.n += x.n; });
+        h += '<h3>Par thème</h3>';
+        Object.keys(th).forEach(k => {
+            const p = pct(th[k].s, th[k].n);
+            h += '<div><div class="row" style="border:0;padding-bottom:0"><span>' + esc(k) + '</span><b>' + p + ' %</b></div><div class="bar"><i style="width:' + p + '%"></i></div></div>';
+        });
+
+        const missed = Object.keys(d.q).filter(k => d.q[k][1] > 0)
+            .sort((a, b) => d.q[b][1] - d.q[a][1] || pct(d.q[a][0], d.q[a][0] + d.q[a][1]) - pct(d.q[b][0], d.q[b][0] + d.q[b][1])).slice(0, 3);
+        if (missed.length) {
+            h += '<h3>Questions les plus ratées</h3>';
+            missed.forEach(k => {
+                h += '<div class="row"><span>' + esc(k) + '</span><b>' + d.q[k][1] + '×</b></div>';
+            });
+        }
+
+        h += '<h3>Dernières sessions</h3>';
+        d.sessions.slice(-5).reverse().forEach(x => {
+            h += '<div class="row"><span>' + esc(x.theme) + '<small>' + new Date(x.d).toLocaleDateString('fr-FR') + ' · ' + fmt(x.t) + '</small></span><b>' + x.s + '/' + x.n + '</b></div>';
+        });
+        box.innerHTML = h;
+    }
+
+    function setMsg(id, text, err) {
+        const m = $(id);
+        m.textContent = text;
+        m.classList.toggle('err', !!err);
+    }
+    function renderCustom() {
+        const list = loadCustom(), box = $('custom-list');
+        $('custom-title').textContent = 'Mes questions (' + list.length + ')';
+        $('theme-list').innerHTML = [...new Set(allQuestions.map(q => q.theme))]
+            .map(t => '<option value="' + esc(t) + '">').join('');
+        if (!list.length) {
+            box.innerHTML = '<p style="color:#64748b;font-size:0.9rem">Aucune question ajoutée pour l\'instant.</p>';
+            return;
+        }
+        box.innerHTML = list.map((q, i) =>
+            '<div class="row"><span>' + esc(q.question) + '<small>' + esc(q.theme) + '</small></span>'
+            + '<button class="del-btn" type="button" data-i="' + i + '">Supprimer</button></div>').join('');
+    }
+    function addQuestion() {
+        const v = id => $(id).value.trim();
+        const q = { theme: v('f-theme'), question: v('f-question'), correctAnswer: v('f-correct'), explanation: v('f-expl') };
+        const wrong = ['f-w1', 'f-w2', 'f-w3'].map(v).filter(Boolean);
+        if (wrong.length) q.wrong = wrong;
+        if (!q.theme || !q.question || !q.correctAnswer) return setMsg('form-msg', 'Le thème, la question et la bonne réponse sont obligatoires.', true);
+        if (wrong.includes(q.correctAnswer)) return setMsg('form-msg', 'Une mauvaise réponse est identique à la bonne.', true);
+        if (allQuestions.some(x => x.question === q.question)) return setMsg('form-msg', 'Cette question existe déjà.', true);
+        const list = loadCustom();
+        list.push(q);
+        if (!saveCustom(list)) return setMsg('form-msg', "Impossible d'enregistrer sur cet appareil.", true);
+        refreshQuestions();
+        ['f-question', 'f-correct', 'f-w1', 'f-w2', 'f-w3', 'f-expl'].forEach(id => { $(id).value = ''; });
+        setMsg('form-msg', 'Question ajoutée au thème « ' + q.theme + ' ».');
+        renderCustom();
+        $('f-question').focus();
+    }
+    function importQuestions() {
+        let data;
+        try { data = JSON.parse($('io-area').value); } catch (e) { return setMsg('io-msg', "Ce texte n'est pas une sauvegarde valide.", true); }
+        if (!Array.isArray(data)) return setMsg('io-msg', "Ce texte n'est pas une sauvegarde valide.", true);
+        const list = loadCustom();
+        let added = 0;
+        data.forEach(x => {
+            if (x && typeof x.theme === 'string' && typeof x.question === 'string' && typeof x.correctAnswer === 'string'
+                && x.theme.trim() && x.question.trim() && x.correctAnswer.trim()
+                && !list.concat(baseQuestions).some(y => y.question === x.question)) {
+                const q = { theme: x.theme.trim(), question: x.question.trim(), correctAnswer: x.correctAnswer.trim(),
+                            explanation: typeof x.explanation === 'string' ? x.explanation : '' };
+                if (Array.isArray(x.wrong)) q.wrong = x.wrong.filter(w => typeof w === 'string' && w.trim()).slice(0, 3);
+                list.push(q); added++;
+            }
+        });
+        saveCustom(list);
+        refreshQuestions();
+        renderCustom();
+        setMsg('io-msg', added + ' question' + (added > 1 ? 's' : '') + ' importée' + (added > 1 ? 's' : '') + '.');
     }
 
     function populateThemes() {
@@ -194,7 +386,8 @@ document.addEventListener("DOMContentLoaded", function () {
         return shuffle([q.correctAnswer].concat(wrong.slice(0, 3)));
     }
 
-    function startQuiz(list) {
+    function startQuiz(list, retry) {
+        isRetry = !!retry;
         currentQuestions = shuffle(list);
         wrongQuestions = [];
         currentIndex = 0; score = 0; secondsElapsed = 0;
@@ -230,6 +423,7 @@ document.addEventListener("DOMContentLoaded", function () {
         answered = true;
         const ok = choice === q.correctAnswer;
         if (ok) score++; else wrongQuestions.push(q);
+        recordAnswer(q, ok);
         document.querySelectorAll('.option-btn').forEach(b => {
             b.disabled = true;
             if (b.textContent === q.correctAnswer) b.classList.add('correct');
@@ -246,6 +440,7 @@ document.addEventListener("DOMContentLoaded", function () {
         clearInterval(timerInterval);
         $('final-score').textContent = score + ' / ' + currentQuestions.length;
         $('final-time').textContent = 'Temps total : ' + fmt(secondsElapsed);
+        recordSession();
         retryBtn.classList.toggle('hidden', wrongQuestions.length === 0);
         retryBtn.textContent = 'Réviser mes erreurs (' + wrongQuestions.length + ')';
         show('result');
@@ -259,8 +454,33 @@ document.addEventListener("DOMContentLoaded", function () {
         currentIndex++;
         if (currentIndex >= currentQuestions.length) endQuiz(); else showQuestion();
     });
-    retryBtn.addEventListener('click', () => startQuiz(wrongQuestions));
+    retryBtn.addEventListener('click', () => startQuiz(wrongQuestions, true));
+    $('stats-btn').addEventListener('click', () => { renderStats(); show('stats'); });
+    $('stats-back-btn').addEventListener('click', () => show('start'));
+    $('stats-reset-btn').addEventListener('click', () => {
+        if (confirm('Effacer toutes vos statistiques ?')) { saveStats({ sessions: [], q: {} }); renderStats(); }
+    });
     $('menu-btn').addEventListener('click', () => show('start'));
+
+    $('manage-btn').addEventListener('click', () => { setMsg('form-msg', ''); setMsg('io-msg', ''); renderCustom(); show('manage'); });
+    $('manage-back-btn').addEventListener('click', () => { populateThemes(); show('start'); });
+    $('add-btn').addEventListener('click', addQuestion);
+    $('custom-list').addEventListener('click', e => {
+        const b = e.target.closest('.del-btn');
+        if (!b || !confirm('Supprimer cette question ?')) return;
+        const list = loadCustom();
+        list.splice(Number(b.dataset.i), 1);
+        saveCustom(list);
+        refreshQuestions();
+        renderCustom();
+    });
+    $('export-btn').addEventListener('click', () => {
+        const txt = JSON.stringify(loadCustom());
+        $('io-area').value = txt;
+        if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => setMsg('io-msg', 'Copié dans le presse-papiers.'), () => setMsg('io-msg', 'Sélectionnez le texte pour le copier.'));
+        else setMsg('io-msg', 'Sélectionnez le texte pour le copier.');
+    });
+    $('import-btn').addEventListener('click', importQuestions);
 
     populateThemes();
     show('start');

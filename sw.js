@@ -1,5 +1,5 @@
 // Incrémentez la version à chaque modification de index.html pour forcer la mise à jour
-const CACHE = 'qcm-v1';
+const CACHE = 'qcm-v3';
 const FILES = ['./', './index.html', './manifest.json', './icon.svg', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
