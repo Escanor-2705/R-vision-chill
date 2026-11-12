@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="QCM">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-180.png">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <title>Mon App QCM</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --success: #16a34a;
+            --error: #dc2626;
+            --border: #e2e8f0;
+        }
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); margin: 0; padding: 16px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { background: var(--card); width: 100%; max-width: 500px; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-weight: bold; color: #64748b; font-size: 0.9rem; }
+        .badge-theme { background: #f1f5f9; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; color: #475569; }
+        .timer { background: #eff6ff; color: var(--primary); padding: 6px 12px; border-radius: 20px; font-variant-numeric: tabular-nums; }
+        .question-text { font-size: 1.2rem; font-weight: 600; margin-bottom: 20px; line-height: 1.4; }
+        .options { display: flex; flex-direction: column; gap: 12px; }
+        button.option-btn { background: var(--card); border: 2px solid var(--border); border-radius: 12px; padding: 14px 16px; text-align: left; font-size: 1rem; color: var(--text); cursor: pointer; transition: all 0.2s; }
+        button.option-btn:active { transform: scale(0.98); }
+        button.option-btn.correct { background: #dcfce7; border-color: var(--success); color: #14532d; font-weight: 600; }
+        button.option-btn.wrong { background: #fee2e2; border-color: var(--error); color: #7f1d1d; }
+        button.option-btn:disabled { cursor: default; }
+        .explanation { margin-top: 20px; padding: 14px; background: #f1f5f9; border-left: 4px solid var(--primary); border-radius: 8px; font-size: 0.95rem; line-height: 1.4; display: none; }
+        .btn-main { width: 100%; background: var(--primary); color: white; border: none; border-radius: 12px; padding: 16px; font-size: 1.05rem; font-weight: 600; margin-top: 16px; cursor: pointer; }
+        .btn-secondary { background: #e2e8f0; color: var(--text); margin-top: 10px; }
+        .select-theme { width: 100%; padding: 14px; border-radius: 12px; border: 2px solid var(--border); font-size: 1rem; color: var(--text); background-color: var(--card); margin-bottom: 8px; cursor: pointer; outline: none; }
+        .select-theme:focus { border-color: var(--primary); }
+        .hidden { display: none; }
+        .score-box { text-align: center; padding: 20px 0; }
+        .score-big { font-size: 3rem; font-weight: 800; color: var(--primary); margin: 10px 0; }
+    
+        .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px 0; }
+        .stat-card { background: #f1f5f9; border-radius: 12px; padding: 12px 6px; text-align: center; }
+        .stat-card b { display: block; font-size: 1.4rem; color: var(--primary); }
+        .stat-card span { font-size: 0.75rem; color: #64748b; }
+        .stats h3 { margin: 20px 0 8px; font-size: 1rem; }
+        .row { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        .row small { color: #64748b; display: block; }
+        .bar { height: 6px; background: var(--border); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+        .bar i { display: block; height: 100%; background: var(--primary); }
+        .btn-danger { background: #fee2e2; color: #7f1d1d; }
+    
+        .input { width: 100%; padding: 12px 14px; margin-bottom: 8px; border: 2px solid var(--border); border-radius: 12px; font-size: 16px; color: var(--text); background: var(--card); outline: none; resize: vertical; }
+        .input:focus { border-color: var(--primary); }
+        .msg { min-height: 1.2em; font-size: 0.9rem; margin: 4px 0 0; color: var(--success); }
+        .msg.err { color: var(--error); }
+        .edit-btn { background: #dbeafe; color: #1e3a8a; border: none; border-radius: 8px; padding: 6px 10px; font-size: 0.85rem; cursor: pointer; }
+        .del-btn { background: #fee2e2; color: #7f1d1d; border: none; border-radius: 8px; padding: 6px 10px; font-size: 0.85rem; cursor: pointer; flex-shrink: 0; align-self: center; }
+    </style>
+</head>
+<body>
+
+
+<div class="container">
+    <!-- ÉCRAN DE DÉMARRAGE -->
+    <div id="start-screen" style="text-align: center;">
+        <h1 style="margin-top: 0;">Prêt à réviser ?</h1>
+        <p style="color: #64748b; margin-bottom: 20px;">Choisissez un thème précis ou révisez l'ensemble de vos cours.</p>
+        
+        <select id="theme-select" class="select-theme">
+            <option value="ALL">Tous les thèmes mélangés</option>
+        </select>
+
+        <button class="btn-main" id="start-btn" type="button">Commencer la session</button>
+        <button class="btn-main btn-secondary" id="srs-btn" type="button">Révision espacée</button>
+        <p class="msg err" id="srs-msg"></p>
+        <button class="btn-main btn-secondary" id="manage-btn" type="button">Ajouter mes questions</button>
+        <button class="btn-main btn-secondary" id="stats-btn" type="button">Mes statistiques</button>
+    </div>
+
+    <!-- ÉCRAN DU QUIZ -->
+    <div id="quiz-screen" class="hidden">
+        <div class="header">
+            <div>
+                <span id="progress">1/5</span>
+                <span class="badge-theme" id="current-theme-badge">Thème</span>
+            </div>
+            <span class="timer" id="timer">00:00</span>
+        </div>
+        <div class="question-text" id="question">Énoncé de la question</div>
+        <div class="options" id="options"></div>
+        <div class="explanation" id="explanation"></div>
+        <button class="btn-main hidden" id="next-btn" type="button">Question suivante</button>
+    </div>
+
+    <!-- ÉCRAN D'AJOUT DE QUESTIONS -->
+    <div id="manage-screen" class="hidden stats">
+        <h2 style="margin-top: 0;" id="form-title">Ajouter une question</h2>
+        <input class="input" id="f-theme" list="theme-list" placeholder="Thème (ex : Couche Réseau)" maxlength="60">
+        <datalist id="theme-list"></datalist>
+        <textarea class="input" id="f-question" rows="2" placeholder="Question"></textarea>
+        <input class="input" id="f-correct" placeholder="Bonne réponse">
+        <input class="input" id="f-w1" placeholder="Mauvaise réponse 1 (facultatif)">
+        <input class="input" id="f-w2" placeholder="Mauvaise réponse 2 (facultatif)">
+        <input class="input" id="f-w3" placeholder="Mauvaise réponse 3 (facultatif)">
+        <textarea class="input" id="f-expl" rows="2" placeholder="Explication (facultatif)"></textarea>
+        <p style="font-size:0.8rem;color:#64748b;margin:0">Sans mauvaises réponses, l'app en pioche dans vos autres questions.</p>
+        <p class="msg" id="form-msg"></p>
+        <button class="btn-main" id="add-btn" type="button">Ajouter la question</button>
+        <button class="btn-main btn-secondary hidden" id="cancel-edit-btn" type="button">Annuler la modification</button>
+        <h3 id="custom-title">Mes questions</h3>
+        <div id="custom-list"></div>
+        <h3>Sauvegarde</h3>
+        <textarea class="input" id="io-area" rows="3" placeholder="Exportez pour copier vos questions, ou collez ici une sauvegarde à importer."></textarea>
+        <p class="msg" id="io-msg"></p>
+        <button class="btn-main btn-secondary" id="export-btn" type="button">Exporter mes questions</button>
+        <button class="btn-main btn-secondary" id="import-btn" type="button">Importer</button>
+        <button class="btn-main" id="manage-back-btn" type="button">Retour</button>
+    </div>
+
+    <!-- ÉCRAN DES STATISTIQUES -->
+    <div id="stats-screen" class="hidden stats">
+        <h2 style="margin-top: 0;">Mes statistiques</h2>
+        <div id="stats-content"></div>
+        <button class="btn-main" id="stats-back-btn" type="button">Retour</button>
+        <button class="btn-main btn-danger" id="stats-reset-btn" type="button">Effacer mes statistiques</button>
+    </div>
+
+    <!-- ÉCRAN DES RÉSULTATS -->
+    <div id="result-screen" class="hidden score-box">
+        <h2 style="margin-top: 0;">Session terminée !</h2>
+        <div class="score-big" id="final-score">0 / 0</div>
+        <p id="final-time" style="color: #64748b; margin-bottom: 24px;">Temps total : 00:00</p>
+        <button class="btn-main hidden" id="retry-wrong-btn" type="button">Réviser mes erreurs</button>
+        <button class="btn-main btn-secondary" id="menu-btn" type="button">Choisir un autre thème</button>
+    </div>
+</div>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // ===== AJOUTEZ VOS QUESTIONS ICI =====
+    // Optionnel : ajoutez wrong: ["faux 1","faux 2","faux 3"] pour imposer vos propres mauvaises réponses.
+    const baseQuestions = [
+        {
+            theme: "Couche Réseau",
+            question: "Quelle est la position de la couche réseau dans le modèle OSI ?",
+            correctAnswer: "La troisième (3e) couche",
+            explanation: "Dans le modèle OSI, la couche réseau se situe juste après la couche liaison de données, en 3e position."
+        },
+        {
+            theme: "Couche Réseau",
+            question: "Quel est le rôle principal du protocole IP au niveau de la couche réseau ?",
+            correctAnswer: "Assurer l'adressage et le routage des paquets de données",
+            explanation: "L'IP (Internet Protocol) permet d'identifier les machines et de trouver le chemin pour acheminer les paquets."
+        },
+        {
+            theme: "Couche Réseau",
+            question: "Comment s'effectuent les connexions entre réseaux au niveau de la couche réseau ?",
+            correctAnswer: "Dans les deux sens entre différents réseaux",
+            explanation: "La communication Internet nécessite des échanges bidirectionnels entre les réseaux interconnectés."
+        },
+        {
+            theme: "Couche Réseau",
+            question: "Qu'est-ce qui rend Internet possible selon le modèle OSI ?",
+            correctAnswer: "Les connexions de réseau à réseau",
+            explanation: "Internet est un réseau de réseaux : ce sont ces interconnexions qui permettent la communication globale."
+        },
+        {
+            theme: "Couche Réseau",
+            question: "Comment définit-on un réseau informatique ?",
+            correctAnswer: "Un ensemble d'équipements interconnectés pour échanger des données",
+            explanation: "Il relie des ordinateurs ou périphériques (comme une imprimante) via une liaison pour partager des informations."
+        },
+        {
+            theme: "Modèle OSI (Général)",
+            question: "Combien de couches comporte le modèle OSI au total ?",
+            correctAnswer: "7 couches",
+            explanation: "Le modèle OSI est divisé en 7 couches allant de la couche physique (1) à la couche application (7)."
+        },
+        {
+            theme: "Modèle OSI (Général)",
+            question: "Quelle couche du modèle OSI gère la transmission brute des bits sur le câble ?",
+            correctAnswer: "La couche physique (1re couche)",
+            explanation: "La couche physique s'occupe des signaux électriques, optiques ou radio."
+        },
+        {
+            theme: "Modèle OSI (Général)",
+            question: "À quelle couche appartient le protocole HTTP ?",
+            correctAnswer: "La couche application (7e couche)",
+            explanation: "HTTP est un protocole directement utilisé par les navigateurs web au niveau de la couche application."
+        },
+        {
+            theme: "Modèle OSI (Général)",
+            question: "Quelle couche assure le transport fiable des données de bout en bout (ex: TCP) ?",
+            correctAnswer: "La couche transport (4e couche)",
+            explanation: "La couche transport segmente les données et garantit leur bonne arrivée avec TCP."
+        }
+    ];
+    // =====================================
+
+    // ===== QUESTIONS AJOUTÉES DEPUIS L'APP (sauvegardées sur l'appareil) =====
+    const CKEY = 'qcm-custom-v1';
+    function loadCustom() {
+        try {
+            const d = JSON.parse(localStorage.getItem(CKEY));
+            if (Array.isArray(d)) return d;
+        } catch (e) {}
+        return [];
+    }
+    function saveCustom(list) {
+        try { localStorage.setItem(CKEY, JSON.stringify(list)); return true; } catch (e) { return false; }
+    }
+    let allQuestions = baseQuestions.concat(loadCustom());
+    function refreshQuestions() { allQuestions = baseQuestions.concat(loadCustom()); }
+
+    let currentQuestions = [], wrongQuestions = [], currentIndex = 0, score = 0;
+    let timerInterval = null, secondsElapsed = 0, answered = false, isRetry = false, srsMode = false;
+
+    const $ = id => document.getElementById(id);
+    const screens = { start: $('start-screen'), quiz: $('quiz-screen'), result: $('result-screen'), stats: $('stats-screen'), manage: $('manage-screen') };
+    const themeSelect = $('theme-select'), nextBtn = $('next-btn'), retryBtn = $('retry-wrong-btn');
+
+    function show(name) {
+        Object.keys(screens).forEach(k => screens[k].classList.toggle('hidden', k !== name));
+    }
+    function shuffle(a) {
+        a = [...a];
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+    function fmt(s) {
+        return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+    }
+
+    // ===== STATISTIQUES (sauvegardées sur l'appareil) =====
+    const KEY = 'qcm-stats-v1';
+    function loadStats() {
+        try {
+            const d = JSON.parse(localStorage.getItem(KEY));
+            if (d && Array.isArray(d.sessions) && d.q) return d;
+        } catch (e) {}
+        return { sessions: [], q: {} };
+    }
+    function saveStats(d) {
+        try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
+    }
+    function esc(t) {
+        return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function recordAnswer(q, ok) {
+        const d = loadStats();
+        const r = d.q[q.question] || [0, 0];
+        r[ok ? 0 : 1]++;
+        d.q[q.question] = r;
+        saveStats(d);
+        srsUpdate(q, ok);
+    }
+    function recordSession() {
+        const d = loadStats();
+        const theme = isRetry ? 'Révision des erreurs' : srsMode ? 'Révision espacée' : (themeSelect.value === 'ALL' ? 'Tous les thèmes' : themeSelect.value);
+        d.sessions.push({ d: Date.now(), theme: theme, s: score, n: currentQuestions.length, t: secondsElapsed });
+        d.sessions = d.sessions.slice(-100);
+        saveStats(d);
+    }
+    // ===== RÉPÉTITION ESPACÉE (boîtes de Leitner) =====
+    // Bonne réponse : la question passe à la boîte suivante (revue plus tard). Mauvaise : retour à la boîte 0.
+    const SKEY = 'qcm-srs-v1', DAYS = [0, 1, 3, 7, 21], SESSION_MAX = 15;
+    function loadSrs() {
+        try { const d = JSON.parse(localStorage.getItem(SKEY)); if (d && typeof d === 'object') return d; } catch (e) {}
+        return {};
+    }
+    function saveSrs(d) { try { localStorage.setItem(SKEY, JSON.stringify(d)); } catch (e) {} }
+    function srsUpdate(q, ok) {
+        const d = loadSrs(), cur = d[q.question] || { b: 0 };
+        const b = ok ? Math.min(cur.b + 1, DAYS.length - 1) : 0;
+        d[q.question] = { b: b, due: Date.now() + DAYS[b] * 864e5 };
+        saveSrs(d);
+    }
+    function srsPool() {
+        const t = themeSelect.value, d = loadSrs(), now = Date.now();
+        const pool = allQuestions.filter(q => t === 'ALL' || q.theme === t);
+        const due = pool.filter(q => d[q.question] && d[q.question].due <= now).sort((a, b) => d[a.question].b - d[b.question].b);
+        return due.concat(shuffle(pool.filter(q => !d[q.question])));
+    }
+    function updateSrsButton() {
+        $('srs-btn').textContent = 'Révision espacée (' + srsPool().length + ' à revoir)';
+    }
+
+    function pct(a, b) { return b ? Math.round(100 * a / b) : 0; }
+
+    function renderStats() {
+        const d = loadStats(), box = $('stats-content');
+        if (!d.sessions.length) {
+            box.innerHTML = '<p style="color:#64748b">Aucune session pour l\'instant. Terminez un quiz pour voir vos progrès ici.</p>';
+            $('stats-reset-btn').classList.add('hidden');
+            return;
+        }
+        $('stats-reset-btn').classList.remove('hidden');
+        const S = d.sessions.reduce((a, x) => ({ s: a.s + x.s, n: a.n + x.n, t: a.t + x.t }), { s: 0, n: 0, t: 0 });
+        let h = '<div class="stat-grid">'
+            + '<div class="stat-card"><b>' + d.sessions.length + '</b><span>sessions</span></div>'
+            + '<div class="stat-card"><b>' + pct(S.s, S.n) + ' %</b><span>de réussite</span></div>'
+            + '<div class="stat-card"><b>' + Math.round(S.t / 60) + ' min</b><span>révisées</span></div></div>';
+
+        const th = {};
+        d.sessions.forEach(x => { const o = th[x.theme] || (th[x.theme] = { s: 0, n: 0 }); o.s += x.s; o.n += x.n; });
+        h += '<h3>Par thème</h3>';
+        Object.keys(th).forEach(k => {
+            const p = pct(th[k].s, th[k].n);
+            h += '<div><div class="row" style="border:0;padding-bottom:0"><span>' + esc(k) + '</span><b>' + p + ' %</b></div><div class="bar"><i style="width:' + p + '%"></i></div></div>';
+        });
+
+        const missed = Object.keys(d.q).filter(k => d.q[k][1] > 0)
+            .sort((a, b) => d.q[b][1] - d.q[a][1] || pct(d.q[a][0], d.q[a][0] + d.q[a][1]) - pct(d.q[b][0], d.q[b][0] + d.q[b][1])).slice(0, 3);
+        if (missed.length) {
+            h += '<h3>Questions les plus ratées</h3>';
+            missed.forEach(k => {
+                h += '<div class="row"><span>' + esc(k) + '</span><b>' + d.q[k][1] + '×</b></div>';
+            });
+        }
+
+        h += '<h3>Dernières sessions</h3>';
+        d.sessions.slice(-5).reverse().forEach(x => {
+            h += '<div class="row"><span>' + esc(x.theme) + '<small>' + new Date(x.d).toLocaleDateString('fr-FR') + ' · ' + fmt(x.t) + '</small></span><b>' + x.s + '/' + x.n + '</b></div>';
+        });
+        box.innerHTML = h;
+    }
+
+    function setMsg(id, text, err) {
+        const m = $(id);
+        m.textContent = text;
+        m.classList.toggle('err', !!err);
+    }
+    let editIdx = null;
+    function endEdit() {
+        editIdx = null;
+        ['f-question', 'f-correct', 'f-w1', 'f-w2', 'f-w3', 'f-expl'].forEach(id => { $(id).value = ''; });
+        $('form-title').textContent = 'Ajouter une question';
+        $('add-btn').textContent = 'Ajouter la question';
+        $('cancel-edit-btn').classList.add('hidden');
+    }
+    function startEdit(i) {
+        const q = loadCustom()[i];
+        if (!q) return;
+        editIdx = i;
+        $('f-theme').value = q.theme; $('f-question').value = q.question; $('f-correct').value = q.correctAnswer;
+        ['f-w1', 'f-w2', 'f-w3'].forEach((id, k) => { $(id).value = (q.wrong && q.wrong[k]) || ''; });
+        $('f-expl').value = q.explanation || '';
+        $('form-title').textContent = 'Modifier la question';
+        $('add-btn').textContent = 'Enregistrer les modifications';
+        $('cancel-edit-btn').classList.remove('hidden');
+        setMsg('form-msg', '');
+        window.scrollTo(0, 0);
+    }
+    function renderCustom() {
+        const list = loadCustom(), box = $('custom-list');
+        $('custom-title').textContent = 'Mes questions (' + list.length + ')';
+        $('theme-list').innerHTML = [...new Set(allQuestions.map(q => q.theme))]
+            .map(t => '<option value="' + esc(t) + '">').join('');
+        if (!list.length) {
+            box.innerHTML = '<p style="color:#64748b;font-size:0.9rem">Aucune question ajoutée pour l\'instant.</p>';
+            return;
+        }
+        box.innerHTML = list.map((q, i) =>
+            '<div class="row"><span>' + esc(q.question) + '<small>' + esc(q.theme) + '</small></span>'
+            + '<div style="display:flex;gap:6px;flex-shrink:0;align-self:center"><button class="edit-btn" type="button" data-i="' + i + '">Modifier</button>'
+            + '<button class="del-btn" type="button" data-i="' + i + '">Supprimer</button></div></div>').join('');
+    }
+    function addQuestion() {
+        const v = id => $(id).value.trim();
+        const q = { theme: v('f-theme'), question: v('f-question'), correctAnswer: v('f-correct'), explanation: v('f-expl') };
+        const wrong = ['f-w1', 'f-w2', 'f-w3'].map(v).filter(Boolean);
+        if (wrong.length) q.wrong = wrong;
+        if (!q.theme || !q.question || !q.correctAnswer) return setMsg('form-msg', 'Le thème, la question et la bonne réponse sont obligatoires.', true);
+        if (wrong.includes(q.correctAnswer)) return setMsg('form-msg', 'Une mauvaise réponse est identique à la bonne.', true);
+        const list = loadCustom();
+        const own = editIdx !== null && list[editIdx] ? list[editIdx].question : null;
+        if (allQuestions.some(x => x.question === q.question && x.question !== own)) return setMsg('form-msg', 'Cette question existe déjà.', true);
+        const wasEdit = editIdx !== null && !!list[editIdx];
+        if (wasEdit) list[editIdx] = q; else list.push(q);
+        if (!saveCustom(list)) return setMsg('form-msg', "Impossible d'enregistrer sur cet appareil.", true);
+        refreshQuestions();
+        endEdit();
+        setMsg('form-msg', wasEdit ? 'Question modifiée.' : 'Question ajoutée au thème « ' + q.theme + ' ».');
+        renderCustom();
+        $('f-question').focus();
+    }
+    function importQuestions() {
+        let data;
+        try { data = JSON.parse($('io-area').value); } catch (e) { return setMsg('io-msg', "Ce texte n'est pas une sauvegarde valide.", true); }
+        if (!Array.isArray(data)) return setMsg('io-msg', "Ce texte n'est pas une sauvegarde valide.", true);
+        const list = loadCustom();
+        let added = 0;
+        data.forEach(x => {
+            if (x && typeof x.theme === 'string' && typeof x.question === 'string' && typeof x.correctAnswer === 'string'
+                && x.theme.trim() && x.question.trim() && x.correctAnswer.trim()
+                && !list.concat(baseQuestions).some(y => y.question === x.question)) {
+                const q = { theme: x.theme.trim(), question: x.question.trim(), correctAnswer: x.correctAnswer.trim(),
+                            explanation: typeof x.explanation === 'string' ? x.explanation : '' };
+                if (Array.isArray(x.wrong)) q.wrong = x.wrong.filter(w => typeof w === 'string' && w.trim()).slice(0, 3);
+                list.push(q); added++;
+            }
+        });
+        saveCustom(list);
+        refreshQuestions();
+        renderCustom();
+        setMsg('io-msg', added + ' question' + (added > 1 ? 's' : '') + ' importée' + (added > 1 ? 's' : '') + '.');
+    }
+
+    function populateThemes() {
+        themeSelect.innerHTML = '<option value="ALL">Tous les thèmes mélangés (' + allQuestions.length + ' questions)</option>';
+        [...new Set(allQuestions.map(q => q.theme))].forEach(t => {
+            const n = allQuestions.filter(q => q.theme === t).length;
+            const o = document.createElement('option');
+            o.value = t;
+            o.textContent = t + ' (' + n + ' question' + (n > 1 ? 's' : '') + ')';
+            themeSelect.appendChild(o);
+        });
+        updateSrsButton();
+    }
+
+    // Construit 4 choix : la bonne réponse + 3 distracteurs
+    function buildChoices(q) {
+        let wrong = q.wrong ? [...q.wrong] : [];
+        if (wrong.length < 3) {
+            const same = allQuestions.filter(x => x !== q && x.theme === q.theme).map(x => x.correctAnswer);
+            const other = allQuestions.filter(x => x !== q && x.theme !== q.theme).map(x => x.correctAnswer);
+            const pool = shuffle(same).concat(shuffle(other)).filter(a => a !== q.correctAnswer && !wrong.includes(a));
+            wrong = wrong.concat(pool).slice(0, 3);
+        }
+        return shuffle([q.correctAnswer].concat(wrong.slice(0, 3)));
+    }
+
+    function startQuiz(list, retry, srs) {
+        isRetry = !!retry;
+        srsMode = !!srs;
+        currentQuestions = shuffle(list);
+        wrongQuestions = [];
+        currentIndex = 0; score = 0; secondsElapsed = 0;
+        clearInterval(timerInterval);
+        $('timer').textContent = '00:00';
+        timerInterval = setInterval(() => { secondsElapsed++; $('timer').textContent = fmt(secondsElapsed); }, 1000);
+        show('quiz');
+        showQuestion();
+    }
+
+    function showQuestion() {
+        answered = false;
+        const q = currentQuestions[currentIndex];
+        $('progress').textContent = (currentIndex + 1) + '/' + currentQuestions.length;
+        $('current-theme-badge').textContent = q.theme;
+        $('question').textContent = q.question;
+        $('explanation').style.display = 'none';
+        nextBtn.classList.add('hidden');
+        const box = $('options');
+        box.innerHTML = '';
+        buildChoices(q).forEach(c => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'option-btn';
+            b.textContent = c;
+            b.addEventListener('click', () => answer(b, c, q));
+            box.appendChild(b);
+        });
+    }
+
+    function answer(btn, choice, q) {
+        if (answered) return;
+        answered = true;
+        const ok = choice === q.correctAnswer;
+        if (ok) score++; else wrongQuestions.push(q);
+        recordAnswer(q, ok);
+        document.querySelectorAll('.option-btn').forEach(b => {
+            b.disabled = true;
+            if (b.textContent === q.correctAnswer) b.classList.add('correct');
+        });
+        if (!ok) btn.classList.add('wrong');
+        const e = $('explanation');
+        e.textContent = q.explanation || '';
+        e.style.display = q.explanation ? 'block' : 'none';
+        nextBtn.textContent = currentIndex === currentQuestions.length - 1 ? 'Voir le résultat' : 'Question suivante';
+        nextBtn.classList.remove('hidden');
+    }
+
+    function endQuiz() {
+        clearInterval(timerInterval);
+        $('final-score').textContent = score + ' / ' + currentQuestions.length;
+        $('final-time').textContent = 'Temps total : ' + fmt(secondsElapsed);
+        recordSession();
+        retryBtn.classList.toggle('hidden', wrongQuestions.length === 0);
+        retryBtn.textContent = 'Réviser mes erreurs (' + wrongQuestions.length + ')';
+        show('result');
+    }
+
+    $('start-btn').addEventListener('click', () => {
+        const t = themeSelect.value;
+        startQuiz(t === 'ALL' ? allQuestions : allQuestions.filter(q => q.theme === t));
+    });
+    nextBtn.addEventListener('click', () => {
+        currentIndex++;
+        if (currentIndex >= currentQuestions.length) endQuiz(); else showQuestion();
+    });
+    retryBtn.addEventListener('click', () => startQuiz(wrongQuestions, true));
+    themeSelect.addEventListener('change', () => { setMsg('srs-msg', ''); updateSrsButton(); });
+    $('srs-btn').addEventListener('click', () => {
+        const list = srsPool().slice(0, SESSION_MAX);
+        if (!list.length) return setMsg('srs-msg', 'Rien à revoir pour le moment : revenez plus tard !', true);
+        setMsg('srs-msg', '');
+        startQuiz(list, false, true);
+    });
+    $('stats-btn').addEventListener('click', () => { renderStats(); show('stats'); });
+    $('stats-back-btn').addEventListener('click', () => show('start'));
+    $('stats-reset-btn').addEventListener('click', () => {
+        if (confirm('Effacer vos statistiques et votre progression de révision ?')) { saveStats({ sessions: [], q: {} }); saveSrs({}); renderStats(); }
+    });
+    $('menu-btn').addEventListener('click', () => { updateSrsButton(); show('start'); });
+
+    $('manage-btn').addEventListener('click', () => { setMsg('form-msg', ''); setMsg('io-msg', ''); renderCustom(); show('manage'); });
+    $('manage-back-btn').addEventListener('click', () => { endEdit(); populateThemes(); show('start'); });
+    $('add-btn').addEventListener('click', addQuestion);
+    $('cancel-edit-btn').addEventListener('click', () => { endEdit(); setMsg('form-msg', ''); });
+    $('custom-list').addEventListener('click', e => {
+        const eb = e.target.closest('.edit-btn');
+        if (eb) return startEdit(Number(eb.dataset.i));
+        const b = e.target.closest('.del-btn');
+        if (!b || !confirm('Supprimer cette question ?')) return;
+        const list = loadCustom();
+        endEdit();
+        list.splice(Number(b.dataset.i), 1);
+        saveCustom(list);
+        refreshQuestions();
+        renderCustom();
+    });
+    $('export-btn').addEventListener('click', () => {
+        const txt = JSON.stringify(loadCustom());
+        $('io-area').value = txt;
+        if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => setMsg('io-msg', 'Copié dans le presse-papiers.'), () => setMsg('io-msg', 'Sélectionnez le texte pour le copier.'));
+        else setMsg('io-msg', 'Sélectionnez le texte pour le copier.');
+    });
+    $('import-btn').addEventListener('click', importQuestions);
+
+    populateThemes();
+    show('start');
+});
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
